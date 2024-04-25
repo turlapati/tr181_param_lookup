@@ -23,7 +23,7 @@ def read_tr181_file(file_name: str) -> List[str]:
                 parameter_name: str = param.get('name')
                 if parameter_name is None:
                     continue  # Skip parameters without a name attribute
-                parameters.append(f'{object_name}.{parameter_name}')
+                parameters.append(f'{object_name}{parameter_name}')
 
             if not obj.findall('.//parameter'):  # Check if object has no parameters
                 parameters.append(object_name)  # Append object name alone
