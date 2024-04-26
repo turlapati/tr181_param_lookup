@@ -2,7 +2,7 @@
 This program provides a graphical user interface (GUI) to search for TR-181 parameters within a CWMP model definition file.
 
 ## Features
-* Parse CWMP model definition file (download the latest file from: https://cwmp-data-models.broadband-forum.org/tr-181-2-17-0-cwmp-full.xml)
+* Parse CWMP model definition file. Download the latest (as of this writing) file from: https://cwmp-data-models.broadband-forum.org/tr-181-2-17-0-cwmp-full.xml
 * Search for parameters by entering a partial string.
 * Select & copy one or more matching parameters from the listbox.
 
@@ -21,3 +21,7 @@ This program provides a graphical user interface (GUI) to search for TR-181 para
 
 ## Error Handling
 The program displays error messages if the selected file cannot be found or if the XML parsing fails.
+
+## License
+Permission is hereby granted, free of charge, to use, copy, modify, and distribute this software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
