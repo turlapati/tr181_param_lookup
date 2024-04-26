@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
-from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, Listbox, Menu, Scrollbar, Tk
-from tkinter import LEFT, RIGHT, MULTIPLE
+from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, Listbox, Menu, Scrollbar
+from tkinter import Tk, Text, Toplevel
+from tkinter import LEFT, RIGHT, MULTIPLE, INSERT
 from tkinter import filedialog, messagebox
 from typing import List
 
@@ -52,6 +53,7 @@ def update_listbox(parameters: List[str], case_ref: BooleanVar, entry_ref: Entry
 
 
 def copy_to_clipboard(listbox_ref: Listbox) -> None:
+    """Copy selected listbox elements to the clipboard"""
     root.clipboard_clear()
     selected = listbox_ref.curselection()
     if selected:
@@ -88,6 +90,33 @@ def click_on_file_open() -> None:
         pass
 
 
+def generate_key_release_event(entry_ref: Entry) -> None:
+    """Generate a Key Release Event for UI action"""
+    entry_ref.event_generate('<KeyRelease>')
+
+
+# Add an "About" menu item to the "Help" menu
+def show_about_dialog():
+    about_dialog = Toplevel(root)
+    about_dialog.title("About")
+    about_dialog.geometry("400x200")
+
+    text_widget = Text(about_dialog, width=40, height=10, font=("Helvetica", 10))
+    text_widget.pack(padx=20, pady=20)
+
+    about_text = """TR-181 Parameter lookup
+Version 1.1
+
+Copyright 2024 - Hari Turlapati
+
+Permission is hereby granted, free of charge, to use, copy, modify, and distribute this software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+"""
+
+    text_widget.insert(INSERT, about_text)
+    text_widget.config(state='disabled')  # make the text read-only
+
+
 if __name__ == '__main__':
     # Create a GUI application
     root: Tk = Tk()
@@ -106,6 +135,11 @@ if __name__ == '__main__':
     # Add 'Open' and 'Exit' commands to the 'File' menu
     file_menu.add_command(label='Open', command=click_on_file_open)
     file_menu.add_command(label='Exit', command=root.quit)
+
+    # Create a "Help" menu
+    help_menu: Menu = Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="Help", menu=help_menu)
+    help_menu.add_command(label="About", command=show_about_dialog)
 
     # Create labels
     file_label: Label = Label(root, text="Load the definition file to start...", anchor='w')
@@ -141,10 +175,13 @@ if __name__ == '__main__':
     case_sensitive: BooleanVar = BooleanVar(value=False)  # Initially case-insensitive
 
     # Create checkbox for case-sensitive search
-    case_sensitive_checkbox: Checkbutton = Checkbutton(root, text="Case-Sensitive Search", variable=case_sensitive)
+    case_sensitive_checkbox: Checkbutton = Checkbutton(root, text="Case-Sensitive Search",
+                                                       variable=case_sensitive,
+                                                       command=lambda: generate_key_release_event(entry))
     case_sensitive_checkbox.pack(anchor='w', side=LEFT)
     # Button to clear selection and restart
-    listbox_clear = Button(root, text="Clear selection", command=lambda: listbox.selection_clear(0, 'end'))
+    listbox_clear = Button(root, text="Clear listbox selection",
+                           command=lambda: listbox.selection_clear(0, 'end'))
     listbox_clear.pack(side=RIGHT)
 
     # Start the GUI application
