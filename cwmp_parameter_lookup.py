@@ -1,12 +1,13 @@
 import xml.etree.ElementTree as ET
-from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, Listbox, Menu, Scrollbar
+from tkinter import BooleanVar, IntVar
+from tkinter import Button, Checkbutton, Entry, Frame, Label, Listbox, Menu, Scrollbar, Radiobutton
 from tkinter import Tk, Text, Toplevel
-from tkinter import LEFT, RIGHT, MULTIPLE, INSERT
+from tkinter import LEFT, RIGHT, RAISED, MULTIPLE, INSERT
 from tkinter import filedialog, messagebox
-from typing import List
+from typing import List, Tuple
 
 
-def read_tr181_file(file_name: str) -> List[str]:
+def read_tr181_file(file_name: str) -> List[Tuple[str, str]]:
     """Retrieve all "parameter" elements under each "object" element within the "model" element
     Generate a List of "object-name"."parameter-name" strings in the model"""
     try:
@@ -14,8 +15,10 @@ def read_tr181_file(file_name: str) -> List[str]:
         tree = ET.parse(file_name)
         xml_root = tree.getroot()
 
+        # debug_access = []
+
         # Get all parameters
-        parameters: List[str] = []
+        parameters: List[Tuple[str, str]] = []
         for obj in xml_root.findall('.//object'):
             object_name: str = obj.get('name')
             if object_name is None:
@@ -25,10 +28,20 @@ def read_tr181_file(file_name: str) -> List[str]:
                 parameter_name: str = param.get('name')
                 if parameter_name is None:
                     continue  # Skip parameters without a name attribute
-                parameters.append(f'{object_name}{parameter_name}')
+
+                access_type: str = param.get('access')  # readOnly, readWrite,  writeOnceReadOnly
+                if access_type is None:
+                    parameters.append((f'{object_name}{parameter_name}', f'any'))
+                else:
+                    parameters.append((f'{object_name}{parameter_name}', access_type))
+                    # if access_type not in debug_access:
+                    #     debug_access.append(access_type)
 
             if not obj.findall('.//parameter'):  # Check if object has no parameters
-                parameters.append(object_name)  # Append object name alone
+                parameters.append((object_name, f'any'))  # Append object name alone
+
+        # for item in debug_access:
+        #     print(item)
 
         return parameters
     except ET.ParseError:
@@ -36,20 +49,32 @@ def read_tr181_file(file_name: str) -> List[str]:
         return []
 
 
-def update_listbox(parameters: List[str], case_ref: BooleanVar, entry_ref: Entry, listbox_ref: Listbox) -> None:
+def update_listbox(parameters: List[Tuple[str, str]], case_ref: BooleanVar, access_ref: IntVar,
+                   entry_ref: Entry, listbox_ref: Listbox) -> None:
     # Clear the listbox
     listbox_ref.delete(0, 'end')
 
-    if case_ref.get():
-        partial_string: str = entry_ref.get()
-        for item in parameters:
-            if partial_string in item:
-                listbox_ref.insert('end', item)
-    else:
-        partial_string: str = entry_ref.get().lower()
-        for item in parameters:
-            if partial_string in item.lower():
-                listbox_ref.insert('end', item)
+    my_case = case_ref.get()
+    my_access = access_ref.get()
+    partial_string: str = entry_ref.get()
+
+    # print("My Access: ", my_access)
+
+    for item in parameters:
+        # Check parameters read/write permissions against the filter
+        if my_access == 1 and item[1] != "readOnly":
+            continue  # Skip all items that are *not* read only, when I want to see read-only parameters
+
+        if my_access == 2 and item[1] == "readOnly":
+            continue  # Skip all items that are read only items, when I want to see read-write items
+
+        target_string = item[0]
+        if my_case == 0:
+            partial_string = partial_string.lower()
+            target_string = target_string.lower()
+
+        if partial_string in target_string:
+            listbox_ref.insert('end', item[0])
 
 
 def copy_to_clipboard(listbox_ref: Listbox) -> None:
@@ -69,16 +94,19 @@ def click_on_file_open() -> None:
             # Update the file label
             file_label.config(text="Model Definition File: " + file_name)
 
-            parameters: List[str] = read_tr181_file(file_name)
+            parameters: List[(str, str)] = read_tr181_file(file_name)
 
             # Enable widgets and populate the listbox
             entry.config(state='normal')
             listbox.config(state='normal')
             for parameter in parameters:
-                listbox.insert('end', parameter)
+                listbox.insert('end', parameter[0])
 
             # Bind the function to the entry widget
-            entry.bind('<KeyRelease>', lambda event: update_listbox(parameters, case_sensitive, entry, listbox))
+            entry.bind('<KeyRelease>', lambda event: update_listbox(parameters, case_sensitive, param_access_type,
+                                                                    entry, listbox))
+            # Set focus on the entry box
+            entry.focus_set()
 
         except FileNotFoundError:
             # Display an error message if the file is not found
@@ -175,10 +203,36 @@ if __name__ == '__main__':
     case_sensitive: BooleanVar = BooleanVar(value=False)  # Initially case-insensitive
 
     # Create checkbox for case-sensitive search
-    case_sensitive_checkbox: Checkbutton = Checkbutton(root, text="Case-Sensitive Search",
+    case_sensitive_checkbox: Checkbutton = Checkbutton(root, text="Case sensitive",
                                                        variable=case_sensitive,
-                                                       command=lambda: generate_key_release_event(entry))
+                                                       command=lambda: generate_key_release_event(entry),
+                                                       borderwidth=1,
+                                                       relief=RAISED)
     case_sensitive_checkbox.pack(anchor='w', side=LEFT)
+
+    # Radio button to filter RO/RW parameters
+    # Create a frame to hold the radio buttons
+    rb_frame: Frame = Frame(root, borderwidth=1, relief=RAISED)
+    rb_frame.pack(anchor='w', side=LEFT)
+    # Create the radio buttons
+    param_access_type: IntVar = IntVar()
+    param_access_type.set(0)  # default value
+
+    description_label: Label = Label(rb_frame, text="  Access:")
+    description_label.pack(side=LEFT)
+
+    r1: Radiobutton = Radiobutton(rb_frame, text="Any", variable=param_access_type, value=0,
+                                  command=lambda: generate_key_release_event(entry))
+    r1.pack(side=LEFT)
+
+    r2: Radiobutton = Radiobutton(rb_frame, text="RO", variable=param_access_type, value=1,
+                                  command=lambda: generate_key_release_event(entry))
+    r2.pack(side=LEFT)
+
+    r3: Radiobutton = Radiobutton(rb_frame, text="RW", variable=param_access_type, value=2,
+                                  command=lambda: generate_key_release_event(entry))
+    r3.pack(side=LEFT)
+
     # Button to clear selection and restart
     listbox_clear = Button(root, text="Clear listbox selection",
                            command=lambda: listbox.selection_clear(0, 'end'))
